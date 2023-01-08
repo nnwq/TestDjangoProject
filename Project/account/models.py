@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import datetime
 
 director = 'DI'
 admin = 'AD'
@@ -22,6 +23,9 @@ class Staff(models.Model):
                                 default=cashier)
     labor_contract = models.IntegerField()
 
+    def get_last_name(self):
+        return self.full_name.slpit()[0]
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
@@ -38,8 +42,31 @@ class Order(models.Model):
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     products = models.ManyToManyField('Product', through='ProductOrder')
 
+    def finish_order(self):
+        self.time_out = datetime.now()
+        self.complete = True
+        self.save()
+
+    def get_duration(self):
+        if self.complete:
+            return(self.time_out - self.time_in).total_seconds()
+        else:
+            return(datetime.now() - self.time_in).total_seconds()
+
 
 class ProductOrder(models.Model):
     Order = models.ForeignKey('Product', on_delete=models.CASCADE)
     Product = models.ForeignKey('Order', on_delete=models.CASCADE)
-    amount = models.IntegerField(default=1)
+    _amount = models.IntegerField(default=1, db_column='amount')
+
+    @property
+    def amount(self):
+        return self._amount
+
+    @amount.setter
+    def amount(self, value):
+        self._amount = int(value) if value >= 0 else 0
+        self.save()
+    def total_amount(self):
+        product_price = self.product.price
+        return product_price * self.amount
